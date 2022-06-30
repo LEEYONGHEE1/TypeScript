@@ -252,7 +252,7 @@ oImplicitAny와 strictNullChecks 이다
 noImplicitAny 플래그를 활성화하면 타입이 any로 암묵적으로 추론되는 변수에 대하여 오류를 발생
 
 2. strictNullChecks  
-null과 undefined의 처리를 잊는 것은 세상의 셀 수 없이 많은 버그들의 원인 -> strictNullChecks 플래그는 null과 undefined를 보다 명시적으로 처리해준다
+null과 undefined의 처리를 잊는 것은 세상의 셀 수 없이 많은 버그들의 원인 -> strictNullChecks 플래그는 null과 undefined를 보다 명시적으로 처리해준다  
 
 
 
