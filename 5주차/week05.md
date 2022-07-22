@@ -263,6 +263,302 @@ myForEach([1, 2, 3], (a, i) => {
 
 JavaScript에서 매개 변수보다 많은 인수가있는 함수를 호출하면 추가 인수가 무시됩니다. TypeScript는 같은 방식으로 동작합니다. 매개 변수가 적은 함수는 항상 더 많은 매개 변수가있는 함수를 대신 할 수 있습니다.
 
-## 6. 기능 과부화 
+## 6. 함수 오버로드 
+타입스크립트의 ‘함수 오버로드(Overloads)’는 이름은 같지만 매개변수 타입과 반환 타입이 다른 여러 함수를 가질 수 있는 것을 말한다.
+
+자바스크립트 함수는 다양한 인수 카운트 및 타입으로 호출 할 수 있습니다 ex) timestamp
+```tsx
+function makeDate(timestamp: number): Date;
+function makeDate(m: number, d: number, y: number): Date;
+function makeDate(mOrTimestamp: number, d?: number, y?: number): Date {
+  if (d !== undefined && y !== undefined) {
+    return new Date(y, mOrTimestamp, d);
+  } else {
+    return new Date(mOrTimestamp);
+  }
+}
+const d1 = makeDate(12345678);
+const d2 = makeDate(5, 5, 5);
+const d3 = makeDate(1, 3);
+```
+
+d3에서 에러가 나는데 : No overload expects 2 arguments, but overloads do exist that expect either 1 or 3 arguments.
+
+원인 : 
+오버로드에는 2개의 인수가 필요하지 않지만 1개 또는 3개의 인수가 필요한 오버로드는 존재합니다.
+
+### 오버로드 시그니처 및 구현 시그니처
+```tsx
+function fn(x: string): void;
+function fn() {
+  // ...
+}
+// Expected to be able to call with zero arguments
+fn();
+```
+
+에러 : Expected 1 arguments, but got 0.
+
+원인 : 위 함수를 먼저 인식해서 오류 
+
+구현 시그니처는 오버로드 시그니처와도 호한이되어야 합니다 
+```tsx
+function fn(x: boolean): void;
+// Argument type isn't right
+function fn(x: string): void;
+function fn(x: boolean) {}
+```
+구현 시그니처인 function fn(x: boolean) {} 이 boolean만 인정하는데 string 타입은 일치하지 않습니다 
+```tsx
+function fn(x: string): string;
+// Return type isn't right
+function fn(x: number): boolean;
+function fn(x: string | number) {
+  return "oops";
+}
+```
+마찬가지로 반환값도 일치해야합니다 
+
+### 좋은 오버로드 작성
+
+```tsx
+function len(s: string): number;
+function len(arr: any[]): number;
+function len(x: any) {
+  return x.length;
+}
+len(""); // OK
+len([0]); // OK
+len(Math.random() > 0.5 ? "hello" : [0]);
+```
+
+에러 : No overload matches this call.
+  Overload 1 of 2, '(s: string): number', gave the following error.
+    Argument of type 'number[] | "hello"' is not assignable to parameter of type 'string'.
+      Type 'number[]' is not assignable to type 'string'.
+  Overload 2 of 2, '(arr: any[]): number', gave the following error.
+    Argument of type 'number[] | "hello"' is not assignable to parameter of type 'any[]'.
+      Type 'string' is not assignable to type 'any[]'.
+두 오버로드 모두 동일한 인수 수와 동일한 반환 타입을 갖기 때문에 대신 오버로드되지 않은 버전의 함수를 작성해야 한다
+```tsx
+function len(x: any[] | string) {
+  return x.length;
+}
+``` 
+가능한 경우 오버로드 대신 유니온 유형이있는 매개 변수를 항상 선호합니다.
+
+### 함수에서 this 선언
+TypeScript는 코드 흐름 분석을 통해 함수에 무엇이 있어야하는지 추론합니다 (예 :this
+```tsx
+const user = {
+  id: 123,
+ 
+  admin: false,
+  becomeAdmin: function () {
+    this.admin = true;
+  },
+};
+```
+위 예제에서 becomeAdmin에서 this를 통해 TypeScript는 함수에 외부 객체 인 해당 객체가 있음을 이해합니다. 
+```tsx
+interface DB {
+  filterUsers(filter: (this: User) => boolean): User[];
+}
+ 
+const db = getDB();
+const admins = db.filterUsers(function (this: User) {
+  return this.admin;
+});
+```
+이 패턴은 콜백 스타일 API에서 일반적이며, 다른 객체는 일반적으로 함수가 호출될 때를 제어합니다. 
+```tsx
+interface DB {
+  filterUsers(filter: (this: User) => boolean): User[];
+}
+ 
+const db = getDB();
+const admins = db.filterUsers(() => this.admin);
+The containing arrow function captures the global value of 'this'.
+Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+```
+이 동작을 정상 작동할려면 화살표 함수가 아닌 일반 함수로 작성해야 합니다 
+
+## 7. 알아야 할 다른 타입
+함수 타입으로 작업 할 때 자주 나타나는 몇 가지 추가 타입이 있습니다 
+
+
+1. void 
+
+void는 값을 변환하지 않는 함수의 반환 값을 나타냅니다 
+ 함수에 명령문이 없거나 해당 return 문에서 명시 적 값을 반환하지 않을 때마다 유추 된 타입입니다.
+```tsx
+// The inferred return type is void
+function noop() {
+  return;
+}
+```
+반환값을 따로 지정해주지 않으면 반환 타입은 void
+
+2. object
+
+- x특수 형식은 프리미티브가 아닌 값(, , 또는 )을 나타냅니다.  
+원시값이 아닌 값은 object   
+
+- 자바 스크립트에서 함수 값은 객체입니다 : 속성을 가지고 있고, 프로토 타입 체인에 있고, , 호출 할 수 있습니다
+이러한 이유로 함수 유형은 TypeScript에서 object로 간주됩니다
+
+3. unknown
+unknown 타입은 단어의 뜻과 동일하게 '알 수 없다, 모른다'라는 의미를 가집니다.
+
+unknown 형식은 모든 값을 나타냅니다. 타입과는 비슷하지만 값으로 아무 것도하지 않는 것이 합법적이지 않기 때문에 더 안전합니다.
+```tsx
+function f1(a: any) {
+  a.b(); // OK
+}
+function f2(a: unknown) {
+  a.b();
+Object is of type 'unknown'.
+}
+```
+unknown을 방지하기 위해서는 조건문을 붙여서 제한을 걸면됩니다 
+
+4. never
+일부 함수는 값을 반환하지 않습니다.
+```tsx
+function fail(msg: string): never {
+  throw new Error(msg);
+}
+```
+반환 타입에서 never는 함수가 예외를 throw하거나 프로그램 실행을 종료한다는 것을 의미합니다
+```tsx
+function fn(x: string | number) {
+  if (typeof x === "string") {
+    // do something
+  } else if (typeof x === "number") {
+    // do something else
+  } else {
+    x; // has type 'never'!
+  }
+}
+```
+never TypeScript가 유니온에 아무것도 남아 있지 않다고 결정할 때도 나타납니다.
+
+5. Function  
+전역 형식은 , 와 같은 속성을 설명하고 JavaScript의 모든 함수 값에 존재하는 다른 속성을 설명합니다. 또한 유형의 값이 항상 호출 될 수있는 특수 속성이 있습니다
+```tsx
+function doSomething(f: Function) {
+  return f(1, 2, 3);
+}
+```
+임의의 함수를 받아 들여야하지만 호출하지 않으려는 경우 형식은 일반적으로 더 안전합니다.() => void
+
+## 8. 나머지 매개 변수 및 인수
+### 8-1 나머지 매개 변수  
+선택적 매개 변수 또는 오버로드를 사용하여 다양한 고정 인수 수를 허용할 수 있는 함수를 만드는 것 외에도 rest 매개 변수를 사용하여 무제한의 인수를 사용하는 함수를 정의할 수도 있습니다.
+
+rest 매개 변수는 다른 모든 매개 변수 뒤에 나타나고 ...구문을 사용합니다
+```tsx
+function multiply(n: number, ...m: number[]) {
+  return m.map((x) => n * x);
+}
+// 'a' gets value [10, 20, 30, 40]
+const a = multiply(10, 1, 2, 3, 4);
+```
+타입스크립트에서 이러한 매개 변수에 대한 모든 타입 주석은 , 또는 튜플 유형이어야합니다 
+
+### 나머지 인수
+spread 구문을 사용하여 배열에서 가변 수의 인수를 제공 할 수 있습니다.
+```tsx
+const arr1 = [1, 2, 3];
+const arr2 = [4, 5, 6];
+arr1.push(...arr2);
+```
+일반적으로 TypeScript는 배열이 변경할 수 없다고 가정하지 않습니다. 이로 인해 몇 가지 놀라운 동작이 발생할 수 있습니다.
+```tsx
+const args = [8, 5];
+const angle = Math.atan2(...args);
+```
+에러 : 스프레드 인수는 튜플 형식을 갖거나 rest 매개 변수에 전달되어야 합니다.
+
+해결 : const를 사용해보자 
+```tsx
+// Inferred as 2-length tuple
+const args = [8, 5] as const;
+// OK
+const angle = Math.atan2(...args);
+```
+## 9. 매개변수 분해
+매개 변수 소멸을 사용하여 인수로 제공된 객체를 함수 본문의 하나 이상의 로컬 변수로 편리하게 압축 해제할 수 있습니다.
+```tsx
+function sum({ a, b, c }) {
+  console.log(a + b + c);
+}
+sum({ a: 10, b: 3, c: 9 });
+```
+객체에 대한 형식 주석은 소멸 구문 다음에 사용됩니다.
+```tsx
+function sum({ a, b, c }: { a: number; b: number; c: number }) {
+  console.log(a + b + c);
+}
+```
+이렇기 작성도 가능하다
+```tsx
+type ABC = { a: number; b: number; c: number };
+function sum({ a, b, c }: ABC) {
+  console.log(a + b + c);
+}
+```
+
+## 10. 함수의 할당 가능성
+반환 타입 void
+함수에 대한 반환 타입은 비정상적이지만 예상되는 동작을 생성 할 수 있습니다.  
+반환 타입을 사용하는 const 타이핑은 함수가 무언가를 반환하지 않도록 강제하지 않습니다.  
+반환 유형 ()이있는 문맥 함수 타입이며, 구현 될 때 다른 값을 반환 할 수 있지만 무시됩니다.  
+따라서 유형의 다음 구현이 유효합니다.() => void
+```tsx
+type voidFunc = () => void;
+ 
+const f1: voidFunc = () => {
+  return true;
+};
+ 
+const f2: voidFunc = () => true;
+ 
+const f3: voidFunc = function () {
+  return true;
+};
+```
+하나의 반환 값이 다른 변수에 할당되면 void 타입을 유지합니다 
+```tsx
+const v1 = f1();
+ 
+const v2 = f2();
+ 
+const v3 = f3();
+```
+이 동작은 숫자를 반환하고 메서드가 반환 유형이 인 함수를 기대하더라도 다음 코드가 유효하도록 존재합니다.
+```tsx
+const src = [1, 2, 3];
+const dst = [0];
+ 
+src.forEach((el) => dst.push(el));
+```
+리터럴 함수 정의에 반환 유형이 void인 경우 해당 함수가 아무 것도 반환해서는 안됩니다 
+```tsx
+function f2(): void {
+  // @ts-expect-error
+  return true;
+}
+ 
+const f3 = function (): void {
+  // @ts-expect-error
+  return true;
+};
+```
+
+
+
+
+
 
 
