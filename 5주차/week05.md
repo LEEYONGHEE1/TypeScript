@@ -501,7 +501,7 @@ function sum({ a, b, c }: { a: number; b: number; c: number }) {
   console.log(a + b + c);
 }
 ```
-이렇기 작성도 가능하다
+이렇게 작성도 가능하다
 ```tsx
 type ABC = { a: number; b: number; c: number };
 function sum({ a, b, c }: ABC) {
