@@ -451,7 +451,7 @@ doSomething(myArray);
 doSomething(new Array("hello", "world"));
 ```
 
-위으 타입과 마찬가지로 Array는 제네릭 타입입니다
+위의 타입과 마찬가지로 Array는 제네릭 타입입니다
 ```tsx
 interface Array<Type> {
   /**
