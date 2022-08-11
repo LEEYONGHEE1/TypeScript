@@ -98,7 +98,7 @@ class GravityActor implements IActor {
             circle.yInc *= -0.7;
         }
         else if (circle.y + radius > canvsHeight) {
-            circle.y = canvsHeight - radius;
+            circle.y = canvsHeight -radius;
             circle.yInc *= -0.7;
         }
 
